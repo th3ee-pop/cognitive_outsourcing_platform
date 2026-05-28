@@ -1,0 +1,156 @@
+@import "@xyflow/react/dist/style.css";
+
+:root {
+  --bg: oklch(0.985 0.005 240);
+  --surface: #ffffff;
+  --subtle: oklch(0.97 0.008 240);
+  --border: oklch(0.92 0.012 240);
+  --fg: oklch(0.22 0.02 250);
+  --muted: oklch(0.55 0.015 245);
+  --accent: oklch(0.58 0.14 245);
+  --accent-deep: oklch(0.42 0.16 250);
+  --accent-soft: oklch(0.95 0.04 245);
+  --edge: oklch(0.78 0.02 245);
+  --danger: oklch(0.58 0.18 25);
+  --success: oklch(0.55 0.12 155);
+  --mono: "IBM Plex Mono", "JetBrains Mono", ui-monospace, monospace;
+  --sans: "Noto Sans SC", "PingFang SC", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100%;
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--sans);
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.mono {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.dot-grid {
+  background:
+    radial-gradient(oklch(0.92 0.012 240) 1px, transparent 1px) 0 0 / 22px 22px,
+    var(--bg);
+}
+
+.icon-btn {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+}
+
+.primary-btn,
+.ghost-btn,
+.soft-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 0 16px;
+  border-radius: 9px;
+  font-size: 13.5px;
+  font-weight: 600;
+  border: 1px solid transparent;
+}
+
+.primary-btn {
+  background: var(--accent);
+  color: #fff;
+}
+
+.ghost-btn {
+  background: transparent;
+  color: var(--fg);
+  border-color: var(--border);
+}
+
+.soft-btn {
+  background: var(--accent-soft);
+  color: var(--accent-deep);
+  border-color: color-mix(in oklch, var(--accent) 30%, transparent);
+}
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.field {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--fg);
+  padding: 10px 12px;
+  font-size: 14px;
+}
+
+.field:focus {
+  outline: 3px solid color-mix(in oklch, var(--accent) 20%, transparent);
+  border-color: color-mix(in oklch, var(--accent) 55%, var(--border));
+}
+
+.label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.message-error {
+  color: var(--danger);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.message-ok {
+  color: var(--success);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.react-flow__node {
+  border: 0;
+  background: transparent;
+}
+
+.react-flow__handle {
+  width: 8px;
+  height: 8px;
+  border: 2px solid var(--accent);
+  background: #fff;
+}
