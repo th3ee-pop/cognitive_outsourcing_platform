@@ -10,15 +10,17 @@ export async function GET() {
   }
 
   const supabase = getSupabaseAdmin();
-  const [users, surveys, maps, disclosures, events] = await Promise.all([
+  const [users, surveys, maps, aiConversations, aiMessages, disclosures, events] = await Promise.all([
     supabase.from("users_profile").select("username,anonymous_code,class_type,role,must_change_password,created_at"),
     supabase.from("survey_responses").select("user_id,answers_json,scores_json,submitted_at"),
     supabase.from("concept_maps").select("user_id,node_count,edge_count,cross_link_count,graph_json,submitted_at"),
+    supabase.from("ai_conversations").select("*"),
+    supabase.from("ai_messages").select("*"),
     supabase.from("external_ai_disclosures").select("*"),
     supabase.from("behavior_events").select("*").order("created_at", { ascending: false }).limit(5000)
   ]);
 
-  const firstError = [users, surveys, maps, disclosures, events].find((result) => result.error)?.error;
+  const firstError = [users, surveys, maps, aiConversations, aiMessages, disclosures, events].find((result) => result.error)?.error;
   if (firstError) return NextResponse.json({ error: firstError.message }, { status: 500 });
 
   return NextResponse.json({
@@ -26,6 +28,8 @@ export async function GET() {
     users: users.data,
     surveyResponses: surveys.data,
     conceptMaps: maps.data,
+    aiConversations: aiConversations.data,
+    aiMessages: aiMessages.data,
     externalAiDisclosures: disclosures.data,
     behaviorEvents: events.data
   });

@@ -49,3 +49,30 @@ export type ExternalAiDisclosure = {
   approximate_time: string;
   created_at?: string;
 };
+
+export type AiChatRole = "user" | "assistant" | "system";
+
+export type AiConversation = {
+  id: string;
+  user_id?: string;
+  task_id: string;
+  title: string;
+  task_stage: string | null;
+  model: string | null;
+  system_prompt_version: string | null;
+  archived_at: string | null;
+  last_message_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AiMessage = {
+  id: string;
+  conversation_id: string;
+  user_id?: string;
+  role: AiChatRole;
+  content: string;
+  token_count: number | null;
+  created_at: string;
+  metadata_json: Record<string, unknown>;
+};

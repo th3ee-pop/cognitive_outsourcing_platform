@@ -74,6 +74,8 @@ create table if not exists public.ai_conversations (
   task_stage text,
   model text,
   system_prompt_version text,
+  archived_at timestamptz,
+  last_message_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -139,6 +141,9 @@ create index if not exists idx_users_profile_role on public.users_profile(role);
 create index if not exists idx_app_sessions_token_hash on public.app_sessions(token_hash);
 create index if not exists idx_survey_responses_user_id on public.survey_responses(user_id);
 create index if not exists idx_concept_maps_user_id on public.concept_maps(user_id);
+create index if not exists idx_ai_conversations_user_archived_updated on public.ai_conversations(user_id, archived_at, updated_at desc);
+create index if not exists idx_ai_conversations_user_last_message on public.ai_conversations(user_id, last_message_at desc);
+create index if not exists idx_ai_messages_conversation_created_at on public.ai_messages(conversation_id, created_at);
 create index if not exists idx_behavior_events_user_id_created_at on public.behavior_events(user_id, created_at);
 create index if not exists idx_external_ai_disclosures_user_id on public.external_ai_disclosures(user_id);
 

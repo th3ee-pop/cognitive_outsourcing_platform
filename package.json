@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "test:ai": "node --test --experimental-strip-types test/ai-core.test.ts",
     "lint": "next lint"
   },
   "dependencies": {

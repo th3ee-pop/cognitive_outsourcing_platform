@@ -4,7 +4,6 @@ import {
   BarChart3,
   Bot,
   Check,
-  Copy,
   Database,
   Download,
   FileText,
@@ -14,12 +13,11 @@ import {
   LogOut,
   Plus,
   Save,
-  Search,
-  Send,
   ShieldCheck,
   Sparkles
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { AiChatModule } from "@/components/AiChatModule";
 import { ctsItems, likertLabels, scoreCts } from "@/data/cts";
 import type { ConceptEdge, ConceptNode, ExternalAiDisclosure, SessionUser } from "@/lib/types";
 
@@ -29,7 +27,7 @@ const navItems: Array<{ id: ModuleId; label: string; sub: string; icon: React.El
   { id: "home", label: "任务说明", sub: "Overview", icon: Home },
   { id: "survey", label: "CTS 前测", sub: "Questionnaire", icon: FileText },
   { id: "graph", label: "知识图谱", sub: "Knowledge graph", icon: GitBranch },
-  { id: "ai", label: "AI 对话", sub: "Locked", icon: Bot, disabled: true },
+  { id: "ai", label: "AI 对话", sub: "Chat", icon: Bot },
   { id: "external", label: "AI 披露", sub: "Disclosure", icon: ShieldCheck },
   { id: "records", label: "我的记录", sub: "Records", icon: Database },
   { id: "admin", label: "管理后台", sub: "Export", icon: BarChart3, adminOnly: true }
@@ -234,7 +232,7 @@ export function LabApp({ user }: { user: SessionUser }) {
         {active === "home" && <Overview user={user} setActive={setActive} compact={compact} />}
         {active === "survey" && <SurveyModule compact={compact} markDone={() => setCompleted((prev) => ({ ...prev, survey: true }))} />}
         {active === "graph" && <GraphModule compact={compact} markDone={() => setCompleted((prev) => ({ ...prev, graph: true }))} />}
-        {active === "ai" && <LockedAiModule />}
+        {active === "ai" && <AiChatModule compact={compact} markDone={() => setCompleted((prev) => ({ ...prev, ai: true }))} />}
         {active === "external" && <ExternalAiModule markDone={() => setCompleted((prev) => ({ ...prev, external: true }))} />}
         {active === "records" && <RecordsModule completed={completed} />}
         {active === "admin" && <AdminModule />}
@@ -267,7 +265,7 @@ function Overview({ user, setActive, compact }: { user: SessionUser; setActive: 
           {[
             ["前测数据", "完成 CTS 计算思维量表，系统保存原始题项与维度得分。"],
             ["知识结构", "绘制你对研究主题相关概念的先验理解，系统记录节点、边、关系标签与图谱 JSON。"],
-            ["AI 互动", "第一版暂未开放系统内 AI，对话入口保留为锁定状态。任务正式开始后再开放。"],
+            ["AI 互动", "在系统内新建、归档并持续留存 AI 对话，系统记录完整互动文本与复制行为。"],
             ["补充披露", "如使用系统外 AI，请记录工具名称、使用环节、提示语摘要与采纳方式。"]
           ].map(([title, body]) => (
             <div key={title} style={{ display: "grid", gridTemplateColumns: compact ? "1fr" : "116px 1fr", gap: compact ? 6 : 18, paddingBottom: 14, borderBottom: "1px dashed var(--border)" }}>
@@ -430,12 +428,55 @@ function SurveyModule({ compact, markDone }: { compact: boolean; markDone: () =>
 }
 
 function GraphModule({ compact, markDone }: { compact: boolean; markDone: () => void }) {
+  const svgRef = useRef<SVGSVGElement | null>(null);
   const [nodes, setNodes] = useState(seedNodes);
   const [edges, setEdges] = useState(seedEdges);
   const [selected, setSelected] = useState("central");
+  const [dragging, setDragging] = useState<{ id: string; offsetX: number; offsetY: number } | null>(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const selectedNode = nodes.find((node) => node.id === selected) ?? nodes[0];
+
+  function clientToSvgPoint(clientX: number, clientY: number) {
+    const svg = svgRef.current;
+    if (!svg) return { x: 0, y: 0 };
+    const point = svg.createSVGPoint();
+    point.x = clientX;
+    point.y = clientY;
+    const transformed = point.matrixTransform(svg.getScreenCTM()?.inverse());
+    return {
+      x: Math.min(860, Math.max(40, transformed.x)),
+      y: Math.min(520, Math.max(40, transformed.y))
+    };
+  }
+
+  function startDrag(event: React.PointerEvent<SVGGElement>, node: ConceptNode) {
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    const point = clientToSvgPoint(event.clientX, event.clientY);
+    setSelected(node.id);
+    setDragging({ id: node.id, offsetX: point.x - node.x, offsetY: point.y - node.y });
+  }
+
+  function dragNode(event: React.PointerEvent<SVGSVGElement>) {
+    if (!dragging) return;
+    const point = clientToSvgPoint(event.clientX, event.clientY);
+    setNodes((prev) =>
+      prev.map((node) =>
+        node.id === dragging.id
+          ? {
+              ...node,
+              x: Math.round(point.x - dragging.offsetX),
+              y: Math.round(point.y - dragging.offsetY)
+            }
+          : node
+      )
+    );
+  }
+
+  function stopDrag() {
+    setDragging(null);
+  }
 
   function addNode() {
     const next = nodes.length + 1;
@@ -469,7 +510,7 @@ function GraphModule({ compact, markDone }: { compact: boolean; markDone: () => 
   }
 
   return (
-    <section style={{ display: "grid", gridTemplateColumns: compact ? "52px minmax(0, 1fr)" : "64px 1fr 280px", height: "100%" }}>
+    <section style={{ display: "grid", gridTemplateColumns: compact ? "52px minmax(0, 1fr)" : "64px minmax(0, 1fr) 320px", height: "100%" }}>
       <aside style={{ borderRight: "1px solid var(--border)", background: "var(--surface)", display: "flex", flexDirection: "column", alignItems: "center", padding: "20px 0", gap: 6 }}>
         <ToolButton icon={Plus} label="节点" onClick={addNode} active />
         <ToolButton icon={GitBranch} label="连线" onClick={addEdge} />
@@ -492,7 +533,14 @@ function GraphModule({ compact, markDone }: { compact: boolean; markDone: () => 
             自动保存 · 待接入
           </div>
         </div>
-        <svg viewBox="0 0 900 560" style={{ width: "100%", height: "100%" }}>
+        <svg
+          ref={svgRef}
+          viewBox="0 0 900 560"
+          onPointerMove={dragNode}
+          onPointerUp={stopDrag}
+          onPointerCancel={stopDrag}
+          style={{ width: "100%", height: "100%", touchAction: "none", userSelect: "none" }}
+        >
           {edges.map((edge) => {
             const source = nodes.find((node) => node.id === edge.source);
             const target = nodes.find((node) => node.id === edge.target);
@@ -510,7 +558,11 @@ function GraphModule({ compact, markDone }: { compact: boolean; markDone: () => 
             const isSelected = node.id === selected;
             const central = node.kind === "central";
             return (
-              <g key={node.id} onClick={() => setSelected(node.id)} style={{ cursor: "pointer" }}>
+              <g
+                key={node.id}
+                onPointerDown={(event) => startDrag(event, node)}
+                style={{ cursor: dragging?.id === node.id ? "grabbing" : "grab" }}
+              >
                 {isSelected && <circle cx={node.x} cy={node.y} r={central ? 44 : 34} fill="none" stroke="var(--accent)" strokeWidth="1.5" strokeDasharray="3 3" />}
                 <circle cx={node.x} cy={node.y} r={central ? 36 : 27} fill={central ? "var(--accent)" : node.kind === "concept" ? "var(--accent-soft)" : "var(--surface)"} stroke={central ? "var(--accent-deep)" : "var(--accent)"} strokeWidth="1.5" />
                 <text x={node.x} y={node.y + 4} textAnchor="middle" fontSize={central ? 14 : 12} fill={central ? "#fff" : "var(--accent-deep)"} fontWeight="650">
@@ -521,29 +573,31 @@ function GraphModule({ compact, markDone }: { compact: boolean; markDone: () => 
           })}
         </svg>
       </div>
-      {!compact && <aside style={{ borderLeft: "1px solid var(--border)", background: "var(--surface)", padding: "24px 22px", display: "grid", alignContent: "start", gap: 18 }}>
-        <div>
-          <label className="label">选中节点 · SELECTED</label>
-          <input className="field" value={selectedNode.label} onChange={(event) => setNodes((prev) => prev.map((node) => (node.id === selectedNode.id ? { ...node, label: event.target.value } : node)))} />
-        </div>
-        <div>
-          <label className="label">节点类型</label>
-          <div style={{ display: "flex", gap: 6 }}>
-            {(["central", "concept", "support", "leaf"] as ConceptNode["kind"][]).map((kind) => (
-              <button key={kind} className={selectedNode.kind === kind ? "soft-btn" : "ghost-btn"} onClick={() => setNodes((prev) => prev.map((node) => (node.id === selectedNode.id ? { ...node, kind } : node)))} style={{ minHeight: 32, padding: "0 10px", fontSize: 12 }}>
-                {kind}
-              </button>
-            ))}
+      {!compact && <aside style={{ borderLeft: "1px solid var(--border)", background: "var(--subtle)", padding: 16 }}>
+        <div className="panel" style={{ padding: "22px 20px", display: "grid", alignContent: "start", gap: 18, minHeight: "calc(100vh - 92px)" }}>
+          <div>
+            <label className="label">选中节点 · SELECTED</label>
+            <input className="field" value={selectedNode.label} onChange={(event) => setNodes((prev) => prev.map((node) => (node.id === selectedNode.id ? { ...node, label: event.target.value } : node)))} />
           </div>
+          <div>
+            <label className="label">节点类型</label>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {(["central", "concept", "support", "leaf"] as ConceptNode["kind"][]).map((kind) => (
+                <button key={kind} className={selectedNode.kind === kind ? "soft-btn" : "ghost-btn"} onClick={() => setNodes((prev) => prev.map((node) => (node.id === selectedNode.id ? { ...node, kind } : node)))} style={{ minHeight: 32, padding: "0 10px", fontSize: 12 }}>
+                  {kind}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div style={{ borderTop: "1px solid var(--border)", paddingTop: 16 }}>
+            <label className="label">图谱概览</label>
+            <Stat label="节点" value={String(nodes.length)} />
+            <Stat label="边" value={String(edges.length)} />
+            <Stat label="横向连接" value={String(edges.filter((edge) => edge.label !== "包含").length)} />
+          </div>
+          {message && <div className="message-ok">{message}</div>}
+          {error && <div className="message-error">{error}</div>}
         </div>
-        <div style={{ borderTop: "1px solid var(--border)", paddingTop: 16 }}>
-          <label className="label">图谱概览</label>
-          <Stat label="节点" value={String(nodes.length)} />
-          <Stat label="边" value={String(edges.length)} />
-          <Stat label="横向连接" value={String(edges.filter((edge) => edge.label !== "包含").length)} />
-        </div>
-        {message && <div className="message-ok">{message}</div>}
-        {error && <div className="message-error">{error}</div>}
       </aside>}
     </section>
   );
@@ -565,35 +619,6 @@ function Stat({ label, value }: { label: string; value: string }) {
         {value}
       </div>
     </div>
-  );
-}
-
-function LockedAiModule() {
-  return (
-    <section style={{ display: "grid", gridTemplateColumns: "288px 1fr", height: "100%" }}>
-      <aside style={{ borderRight: "1px solid var(--border)", background: "var(--surface)", padding: "20px 18px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-          <div style={{ fontSize: 13.5, fontWeight: 700 }}>对话档案</div>
-          <button className="soft-btn" disabled style={{ minHeight: 30, fontSize: 12 }}>
-            <Plus size={12} /> 新对话
-          </button>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", background: "var(--bg)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--muted)", fontSize: 12.5 }}>
-          <Search size={14} /> 任务开始后开放检索
-        </div>
-      </aside>
-      <div style={{ display: "grid", placeItems: "center", padding: 42 }}>
-        <div className="panel" style={{ maxWidth: 560, padding: 34, textAlign: "center" }}>
-          <div style={{ width: 54, height: 54, margin: "0 auto 16px", borderRadius: 14, display: "grid", placeItems: "center", background: "var(--accent-soft)", color: "var(--accent-deep)" }}>
-            <Lock size={24} />
-          </div>
-          <h2 style={{ margin: "0 0 8px", fontSize: 22 }}>AI 智能体互动暂未开放</h2>
-          <p style={{ margin: 0, color: "var(--muted)", lineHeight: 1.75, fontSize: 14 }}>
-            第一版先完成前测与知识图谱采集。任务正式开始后，此处将开放系统内 AI 对话，并记录任务阶段、完整互动文本与复制事件。
-          </p>
-        </div>
-      </div>
-    </section>
   );
 }
 
@@ -666,7 +691,7 @@ function RecordsModule({ completed }: { completed: Record<string, boolean> }) {
   const rows = [
     ["CTS 前测", completed.survey ? "已提交" : "未提交"],
     ["知识图谱", completed.graph ? "已保存" : "未保存"],
-    ["AI 对话", "暂未开放"],
+    ["AI 对话", completed.ai ? "已有互动记录" : "可新建对话"],
     ["系统外 AI 披露", completed.external ? "已提交记录" : "可选补充"]
   ];
   return (
